@@ -28,6 +28,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "branding": {
+        "shortName": "RTH",
+        "themeColor": "#020B18"
+      }
     }
   }
 }
