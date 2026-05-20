@@ -1,60 +1,60 @@
-name: Royal Transit Horizon Pure Independent APK Generator
+name: RTH Official Android Build System
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch: # Allows you to manually click "Run workflow" on GitHub website
+  workflow_dispatch:
 
 jobs:
-  compile_native_apk:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Pull the code into the independent GitHub runner environment
-      - name: Checkout Repository Code
+      # 1. Checkout the project code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Inject Node.js runtime for bundling JavaScript packages
-      - name: Setup Node.js Virtualization
+      # 2. Setup Node environment
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
 
-      # 3. Inject Java Development Kit (JDK 17) required natively by Android Gradle
-      - name: Install Android Java Compiler (JDK 17)
+      # 3. Setup Java for Android
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      # 4. Install the Android SDK tools inside the virtual machine
-      - name: Setup Android SDK Environment
-        uses: android-actions/setup-android@v3
+      # 4. Handle dependencies automatically
+      # This checks for lock file, if missing it creates one automatically.
+      - name: Install Project Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
-      # 5. Download all project dependencies without affecting local states
-      - name: Install Node Modules Packages
-        run: npm ci
-
-      # 6. EXPO BYPASS: Generate pure native Android source code folders locally on the runner
-      - name: Generate Pure Native Android Framework Folder
+      # 5. Prebuild the native Android framework
+      - name: Generate Native Android Workspace
         run: npx expo prebuild --platform android --no-install
 
-      # 7. Grant official operating system permissions to the Android compilation engine
-      - name: Set Execute Permission for Gradle Wrapper
+      # 6. Make Gradle executable
+      - name: Grant Executable Permissions
         run: chmod +x android/gradlew
 
-      # 8. COMPILATION LOOP: Run the native compiler to assemble a release standalone APK
-      - name: Assemble Standalone Production Android APK
+      # 7. Compile the release APK
+      - name: Build Production APK
         run: |
           cd android
           ./gradlew assembleRelease --no-daemon
 
-      # 9. OUTPUT ARCHIVE: Extract the cooked APK and present it as a download link
-      - name: Package and Upload Independent APK File
+      # 8. Upload the final APK file to GitHub
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Royal-Transit-Horizon-Independent-APK
+          name: Royal-Transit-Horizon-Release
           path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 5
