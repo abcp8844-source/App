@@ -1,0 +1,37 @@
+name: Clean, Prettify and Build
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Clean Project and Install
+        run: |
+          # 1. پرانی فائلز اور کیش کی مکمل صفائی
+          rm -rf node_modules
+          rm -f package-lock.json
+          
+          # 2. تازہ ترین پیکجز انسٹال کرنا
+          npm install --legacy-peer-deps
+          
+      - name: Format Code (Prettier)
+        run: |
+          # 3. کوڈ کو پروفیشنل طریقے سے فارمیٹ کرنا
+          npm run lint
+
+      - name: Build APK
+        run: |
+          # 4. اینڈرائیڈ بلڈ کا عمل
+          # (نوٹ: یہاں آپ کی بلڈ کمانڈز آئیں گی)
+          npm run android
