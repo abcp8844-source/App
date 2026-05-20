@@ -4,10 +4,8 @@
     "slug": "royal-transit-horizon",
     "version": "1.0.0",
     "orientation": "landscape",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#020B18"
     },
@@ -17,7 +15,6 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#020B18"
       },
       "package": "com.royalstudios.royaltransithorizon",
@@ -25,15 +22,6 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "branding": {
-        "shortName": "RTH",
-        "themeColor": "#020B18"
-      }
     }
   }
 }
