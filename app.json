@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Royal Transit: Horizon",
+    "slug": "royal-transit-horizon",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#020B18"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.royalstudios.royaltransithorizon"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#020B18"
+      },
+      "package": "com.royalstudios.royaltransithorizon",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
