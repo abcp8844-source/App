@@ -1,0 +1,60 @@
+name: Royal Transit Horizon Pure Independent APK Generator
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows you to manually click "Run workflow" on GitHub website
+
+jobs:
+  compile_native_apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Pull the code into the independent GitHub runner environment
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      # 2. Inject Node.js runtime for bundling JavaScript packages
+      - name: Setup Node.js Virtualization
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      # 3. Inject Java Development Kit (JDK 17) required natively by Android Gradle
+      - name: Install Android Java Compiler (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 4. Install the Android SDK tools inside the virtual machine
+      - name: Setup Android SDK Environment
+        uses: android-actions/setup-android@v3
+
+      # 5. Download all project dependencies without affecting local states
+      - name: Install Node Modules Packages
+        run: npm ci
+
+      # 6. EXPO BYPASS: Generate pure native Android source code folders locally on the runner
+      - name: Generate Pure Native Android Framework Folder
+        run: npx expo prebuild --platform android --no-install
+
+      # 7. Grant official operating system permissions to the Android compilation engine
+      - name: Set Execute Permission for Gradle Wrapper
+        run: chmod +x android/gradlew
+
+      # 8. COMPILATION LOOP: Run the native compiler to assemble a release standalone APK
+      - name: Assemble Standalone Production Android APK
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon
+
+      # 9. OUTPUT ARCHIVE: Extract the cooked APK and present it as a download link
+      - name: Package and Upload Independent APK File
+        uses: actions/upload-artifact@v4
+        with:
+          name: Royal-Transit-Horizon-Independent-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 5
