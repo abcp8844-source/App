@@ -1,8 +1,6 @@
 import worldEngineInstance from './DynamicWorldEngine';
 import vehiclePhysicsInstance from './VehiclePhysicsController';
 import playerStateInstance from './PlayerStateController';
-import trafficBotInstance from '../ai/TrafficBotController';
-import combatSystemInstance from './CombatSystemEngine';
 import enemyCombatAIInstance from '../ai/EnemyCombatAI';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { royalCloudDatabase } from '../network/FirebaseConfig';
@@ -22,64 +20,44 @@ class GameStateManager {
       const userRef = doc(royalCloudDatabase, "users", userId);
       const userSnap = await getDoc(userRef);
 
-      if (userSnap.exists()) {
-        this.activePlayer = userSnap.data();
-      } else {
-        this.activePlayer = {
-          id: userId,
-          x: 500,
-          y: 500,
-          rotation: 0,
-          health: 100,
-          inventory: { wood: 50, stone: 20, iron: 0, fuel: 0, rareParts: 0 },
-          vitals: { hunger: 100, thirst: 100 }
-        };
-      }
+      this.activePlayer = userSnap.exists() ? userSnap.data() : {
+        id: userId,
+        x: 500, y: 500, health: 100,
+        inventory: { wood: 50, stone: 20, iron: 0, fuel: 0, rareParts: 0 }
+      };
 
       this.spawnMissionGuards();
       this.isRunning = true;
-      console.log('Engine successfully booted with synced state.');
-    } catch (error) {
-      console.error('Engine Boot Error:', error);
+      return true;
+    } catch (e) {
+      this.isRunning = false;
+      throw e;
     }
   }
 
   async saveGameState(userId) {
     try {
-      const userRef = doc(royalCloudDatabase, "users", userId);
-      await setDoc(userRef, this.activePlayer, { merge: true });
-    } catch (error) {
-      console.error('Sync Error:', error);
+      await setDoc(doc(royalCloudDatabase, "users", userId), this.activePlayer, { merge: true });
+    } catch (e) {
+      console.error(e);
     }
   }
 
   spawnMissionGuards() {
+    this.activeGuards = [];
+    if (!this.runtimeWorldState?.worldMissions) return;
+    
     this.runtimeWorldState.worldMissions.forEach((mission, idx) => {
       for (let i = 0; i < 3; i++) {
-        this.activeGuards.push({
-          id: `guard_${idx}_${i}`,
-          x: mission.x + (i * 40) - 60,
-          y: mission.y + (i * 40) - 60,
-          health: 100,
-          currentAIState: 'PATROL'
-        });
+        this.activeGuards.push({ id: `g_${idx}_${i}`, x: mission.x, y: mission.y, health: 100 });
       }
     });
   }
 
-  processFrameTick(joystickX, joystickY, runButtonPressed, interactActionTriggered) {
-    if (!this.isRunning) return null;
+  processFrameTick(joyX, joyY, run, interact) {
+    if (!this.isRunning || !this.activePlayer) return null;
 
-    const currentZone = worldEngineInstance.zones;
-    let surfaceType = 'OFF_ROAD';
-    if (this.activePlayer.x > currentZone.VILLAGE.minX) surfaceType = 'DIRT_ROAD';
-    if (this.activePlayer.x > currentZone.CITY.minX) surfaceType = 'STREET';
-
-    if (interactActionTriggered) {
-      playerStateInstance.handleVehicleInteraction(this.activePlayer, this.runtimeWorldState.vehicles);
-    }
-    
-    playerStateInstance.updatePlayerFrame(this.activePlayer, joystickX, joystickY, runButtonPressed, surfaceType);
+    playerStateInstance.updatePlayerFrame(this.activePlayer, joyX, joyY, run, 'STREET');
     vehiclePhysicsInstance.updateTrafficFlow(this.runtimeWorldState.vehicles, this.runtimeWorldState.roadNetwork);
     
     this.activeGuards.forEach(guard => {
