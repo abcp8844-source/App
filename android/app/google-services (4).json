@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "432515443061",
+    "project_id": "royal-a7e3c",
+    "storage_bucket": "royal-a7e3c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:432515443061:android:3179846ce398465e924b3c",
+        "android_client_info": {
+          "package_name": "com.royalstudios.royaltransithorizon"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaoD9EwfHI1bz1R9DyxgLiXgh1hTn3aMs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
