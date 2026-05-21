@@ -31,7 +31,7 @@ jobs:
           npm install --legacy-peer-deps
 
       - name: Generate Native Android Workspace
-        run: npx expo prebuild --platform android --template blank --no-install
+        run: npx expo prebuild --platform android --no-install
 
       - name: Grant Executable Permissions
         run: chmod +x android/gradlew
