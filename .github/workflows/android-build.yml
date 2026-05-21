@@ -26,18 +26,14 @@ jobs:
           java-version: '17'
 
       - name: Install Project Dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Generate Native Android Workspace
         run: npx expo prebuild --platform android --no-install
 
-      - name: Prepare Assets Directory
-        run: mkdir -p android/app/src/main/assets
-
       - name: Bundle JavaScript Code
         run: |
+          mkdir -p android/app/src/main/assets
           npx expo export:embed --platform android --dev false --entry-file App.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 
       - name: Grant Executable Permissions
@@ -51,5 +47,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Royal-Transit-Horizon-Release
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          name: Royal-Transit-Horizon-APK
+          path: android/app/build/outputs/apk/**/*.apk
