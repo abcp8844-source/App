@@ -33,10 +33,11 @@ jobs:
       - name: Generate Native Android Workspace
         run: npx expo prebuild --platform android --no-install
 
+      - name: Prepare Assets Directory
+        run: mkdir -p android/app/src/main/assets
+
       - name: Bundle JavaScript Code
-        run: |
-          mkdir -p android/app/src/main/assets
-          npm run bundle:android
+        run: npm run bundle:android
 
       - name: Grant Executable Permissions
         run: chmod +x android/gradlew
@@ -51,4 +52,3 @@ jobs:
         with:
           name: Royal-Transit-Horizon-Release
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk
- 
