@@ -1,0 +1,76 @@
+{
+  "project_info": {
+    "project_number": "164171781338",
+    "project_id": "dining-table-official-84fb5",
+    "storage_bucket": "dining-table-official-84fb5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:164171781338:android:2035bb861bc2d077e741e3",
+        "android_client_info": {
+          "package_name": "com.abcp.diningtable"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "164171781338-lo9pcr1agi7ahsq7lbie9bc05ju088ln.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.abcp.diningtable",
+            "certificate_hash": "9a9348aaf8fb15b42d78c3c140c51237eb4db87c"
+          }
+        },
+        {
+          "client_id": "164171781338-5beud68gq47feifhikt3v2o3mtntbj27.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuWPDrw1Haln3KGBSFI8yEV3IuqvkCDR4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "164171781338-5beud68gq47feifhikt3v2o3mtntbj27.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:164171781338:android:9a676f394b988450e741e3",
+        "android_client_info": {
+          "package_name": "com.royalstudios.royaltransithorizon"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "164171781338-5beud68gq47feifhikt3v2o3mtntbj27.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuWPDrw1Haln3KGBSFI8yEV3IuqvkCDR4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "164171781338-5beud68gq47feifhikt3v2o3mtntbj27.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
