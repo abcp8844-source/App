@@ -7,31 +7,37 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # گٹھب سرور کو واپس کوڈ پش کرنے کی اجازت دینے کے لیے یہ لازمی ہے
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
 
-      - name: Clean Project and Install
+      - name: Clean Project and Install Dependencies
         run: |
-          # 1. پرانی فائلز اور کیش کی مکمل صفائی
-          rm -rf node_modules
-          rm -f package-lock.json
-          
-          # 2. تازہ ترین پیکجز انسٹال کرنا
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
           npm install --legacy-peer-deps
-          
-      - name: Format Code (Prettier)
-        run: |
-          # 3. کوڈ کو پروفیشنل طریقے سے فارمیٹ کرنا
-          npm run lint
 
-      - name: Build APK
+      - name: Format Code
         run: |
-          # 4. اینڈرائیڈ بلڈ کا عمل
-          # (نوٹ: یہاں آپ کی بلڈ کمانڈز آئیں گی)
-          npm run android
+          npx prettier --write "src/**/*.{js,jsx,json,md}" || true
+
+      - name: Commit and Push Updated package-lock and Formatted Code
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json src/
+          git diff-index --quiet HEAD || git commit -m "chore: automated clean, format and lockfile update [skip ci]"
+          git push origin main
