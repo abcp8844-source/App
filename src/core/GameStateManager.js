@@ -1,76 +1,96 @@
-import worldEngineInstance from './DynamicWorldEngine';
-import vehiclePhysicsInstance from './VehiclePhysicsController';
+import dynamicWorldInstance from './DynamicWorldEngine';
 import playerStateInstance from './PlayerStateController';
-import enemyCombatAIInstance from '../ai/EnemyCombatAI';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { royalCloudDatabase } from '../network/FirebaseConfig';
+import vehiclePhysicsInstance from './VehiclePhysicsController';
+import marineAviationInstance from './MarineAviationFleetController';
+import soundEngineInstance from './SoundFXDynamicEngine';
+import enemyAIInstance from '../ai/EnemyCombatAI';
+import missionControllerInstance from './MissionController';
 
 class GameStateManager {
   constructor() {
-    this.isRunning = false;
-    this.runtimeWorldState = null;
-    this.activePlayer = null;
-    this.activeGuards = [];
+    this.runtimeWorldState = dynamicWorldInstance.generateWorldInfrastructure();
+    this.runtimeWorldState.worldMissions = dynamicWorldInstance.generateInitialMissions();
+    this.activePlayer = { x: 2500, y: 2500, health: 100, cash: 500 };
+    this.joyX = 0;
+    this.joyY = 0;
+    this.run = false;
+    this.drivingControls = { throttle: false, brake: false, steer: 0 };
+    this.subscribers = [];
+    this.activeMissionId = null;
   }
 
-  async bootUpEngine(userId) {
-    try {
-      this.runtimeWorldState = worldEngineInstance.generateWorldInfrastructure();
-      
-      const userRef = doc(royalCloudDatabase, "users", userId);
-      const userSnap = await getDoc(userRef);
+  // Game Loop
+  update() {
+    const playerVehicle = this.activePlayer.currentVehicleId ? this.runtimeWorldState.vehicles[this.activePlayer.currentVehicleId] : null;
+    
+    playerStateInstance.updatePlayerFrame(this.activePlayer, this.joyX, this.joyY, this.run, playerVehicle, this.drivingControls);
 
-      this.activePlayer = userSnap.exists() ? userSnap.data() : {
-        id: userId,
-        x: 500, y: 500, health: 100,
-        inventory: { wood: 50, stone: 20, iron: 0, fuel: 0, rareParts: 0 }
-      };
+    vehiclePhysicsInstance.updateAIVehiclePositions(this.runtimeWorldState.vehicles, this.runtimeWorldState.roadNetwork);
+    marineAviationInstance.updateFleet(this.runtimeWorldState.marineAviation);
 
-      this.spawnMissionGuards();
-      this.isRunning = true;
-      return true;
-    } catch (e) {
-      this.isRunning = false;
-      throw e;
+    const worldGrid = this.runtimeWorldState.grid;
+    this.runtimeWorldState.guards.forEach(guard => {
+      enemyAIInstance.executeTacticalBrain(guard, this.activePlayer, worldGrid);
+    });
+
+    missionControllerInstance.update(this.getFullState());
+    
+    soundEngineInstance.processAudioFrame(this.getFullState());
+    
+    this.notifySubscribers();
+    requestAnimationFrame(() => this.update());
+  }
+
+  startMission(missionId) {
+    const mission = this.runtimeWorldState.worldMissions.find(m => m.id === missionId);
+    if (mission && mission.status === 'AVAILABLE') {
+      this.activeMissionId = missionId;
+      mission.status = 'ACTIVE';
+      console.log(`[GameState] Mission started: ${mission.title}`);
     }
   }
 
-  async saveGameState(userId) {
-    try {
-      await setDoc(doc(royalCloudDatabase, "users", userId), this.activePlayer, { merge: true });
-    } catch (e) {
-      console.error(e);
-    }
+  setJoystick(x, y) {
+    this.joyX = x;
+    this.joyY = y;
   }
 
-  spawnMissionGuards() {
-    this.activeGuards = [];
-    if (!this.runtimeWorldState?.worldMissions) return;
-    
-    this.runtimeWorldState.worldMissions.forEach((mission, idx) => {
-      for (let i = 0; i < 3; i++) {
-        this.activeGuards.push({ id: `g_${idx}_${i}`, x: mission.x, y: mission.y, health: 100 });
-      }
-    });
+  setRun(isRunning) {
+    this.run = isRunning;
   }
 
-  processFrameTick(joyX, joyY, run, interact) {
-    if (!this.isRunning || !this.activePlayer) return null;
+  setDrivingControls(controls) {
+    this.drivingControls = controls;
+  }
 
-    playerStateInstance.updatePlayerFrame(this.activePlayer, joyX, joyY, run, 'STREET');
-    vehiclePhysicsInstance.updateTrafficFlow(this.runtimeWorldState.vehicles, this.runtimeWorldState.roadNetwork);
-    
-    this.activeGuards.forEach(guard => {
-      enemyCombatAIInstance.executeTacticalBrain(guard, this.activePlayer, []);
-    });
-
+  getFullState() {
     return {
       player: this.activePlayer,
       vehicles: this.runtimeWorldState.vehicles,
-      guards: this.activeGuards
+      worldMissions: this.runtimeWorldState.worldMissions,
+      activeMissionId: this.activeMissionId,
+      world: this.runtimeWorldState,
+      marineAviation: this.runtimeWorldState.marineAviation,
+      guards: this.runtimeWorldState.guards
     };
+  }
+
+  subscribe(callback) {
+    this.subscribers.push(callback);
+  }
+
+  notifySubscribers() {
+    const fullState = this.getFullState();
+    this.subscribers.forEach(callback => callback(fullState));
+  }
+  
+  async initializeGame() {
+    await soundEngineInstance.initializeAudioEngine();
+    this.runtimeWorldState.guards = [ { id: 'g1', x: 2250, y: 1850, health: 100 } ];
+    this.update();
   }
 }
 
 const gameStateInstance = new GameStateManager();
+gameStateInstance.initializeGame();
 export default gameStateInstance;

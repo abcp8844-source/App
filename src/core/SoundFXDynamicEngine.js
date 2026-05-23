@@ -1,126 +1,104 @@
-import { Audio } from 'expo-av';
-
 class SoundFXDynamicEngine {
   constructor() {
-    this.activeAudioPool = {};
-    this.soundAssetsLibrary = {};
-    this.isAudioEngineMuted = false;
+    this.audioContext = null; // To be replaced with an actual Web Audio API context
+    this.soundLibrary = {}; // Placeholder for loaded sound buffers
+    this.activeSounds = new Map(); // Tracks currently playing sounds (e.g., loops)
   }
 
-  /**
-   * 1. PRE-LOAD GLOBAL SOUND CHANNELS
-   * Maps memory registry addresses and prepares asynchronous background ducks.
-   */
-  async preheatGlobalSoundRegistry() {
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        staysActiveInBackground: false,
-      });
+  async initializeAudioEngine() {
+    // This is where you would load all your sound files
+    console.log('[SoundEngine] Audio systems initialized. Sound files would be loaded here.');
+    // Simulating loading sounds
+    this.soundLibrary = {
+      engine_loop: { buffer: 'engine_sound_data', basePitch: 1.0 },
+      brake_screech: { buffer: 'brake_sound_data' },
+      city_ambience: { buffer: 'ambience_data' },
+      punch_hit: { buffer: 'punch_data' },
+    };
+  }
 
-      this.soundAssetsLibrary = {
-        FOOTSTEPS_CONCRETE: require('../../assets/sounds/footsteps_walk.mp3'),
-        BIKE_IDLE: require('../../assets/sounds/bike_engine_idle.mp3'),
-        BIKE_ACCELERATE: require('../../assets/sounds/bike_gear_rev.mp3'),
-        TIRE_SCREECH_DRIFT: require('../../assets/sounds/tire_slip_drift.mp3'),
-        STEAM_LOCOMOTIVE: require('../../assets/sounds/steam_train_chug.mp3'),
-        METRO_ELECTRIC: require('../../assets/sounds/metro_subway_loop.mp3'),
-        CHOPPER_ROTORS: require('../../assets/sounds/helicopter_blades.mp3'),
-        JET_PROPULSION: require('../../assets/sounds/fighter_jet_flyby.mp3')
-      };
-      
-      console.log("[AudioEngine] All infrastructure sound nodes mapped seamlessly.");
-    } catch (err) {
-      console.error("[AudioEngine] Failed to assign audio channels:", err);
+  // Main processing loop called from GameStateManager
+  processAudioFrame(gameState) {
+    this.updateAmbiance(gameState);
+    this.updateVehicleAudio(gameState);
+    this.updateActionAudio(gameState);
+  }
+
+  updateAmbiance(gameState) {
+    // Ensure city ambience is always playing
+    if (!this.activeSounds.has('ambience')) {
+      this.loopSound('ambience', this.soundLibrary.city_ambience, 0.3);
     }
   }
 
-  /**
-   * 2. EUCLIDEAN DISTANCE MATRIX CALCULATOR
-   * Computes inverse linear decay values between two moving vector states.
-   */
-  calculateSpatialVolume(playerX, playerY, sourceX, sourceY, maxAudibleRadius = 250) {
-    const distance = Math.hypot(sourceX - playerX, sourceY - playerY);
-    if (distance >= maxAudibleRadius) return 0.0;
-    
-    const rawVolume = 1.0 - (distance / maxAudibleRadius);
-    return Math.max(0.0, Math.min(rawVolume, 1.0));
-  }
+  updateVehicleAudio(gameState) {
+    const playerVehicle = gameState.player.currentVehicleId ? gameState.vehicles[gameState.player.currentVehicleId] : null;
 
-  /**
-   * 3. THE LIVE BIKE ENGINE SOUND LOGIC
-   * Dynamically alters frequency modulations and pitch values relative to velocity thresholds.
-   */
-  async updatePlayerVehicleAudio(bikeSpeed, isDrifting, isAccelerating) {
-    const bikeSoundInstance = this.activeAudioPool['PLAYER_BIKE'];
-    if (!bikeSoundInstance) return;
-
-    try {
-      if (bikeSpeed === 0) {
-        await bikeSoundInstance.setVolumeAsync(0.4);
-        await bikeSoundInstance.setRateAsync(1.0, true);
-      } else {
-        const targetPitch = 1.0 + (bikeSpeed * 0.05);
-        const targetVolume = isAccelerating ? 1.0 : 0.7;
-        
-        await bikeSoundInstance.setVolumeAsync(targetVolume);
-        await bikeSoundInstance.setRateAsync(Math.min(targetPitch, 2.5), true);
+    if (playerVehicle) {
+      if (!this.activeSounds.has('engine')) {
+        this.loopSound('engine', this.soundLibrary.engine_loop, 0.5);
       }
 
-      const driftSoundInstance = this.activeAudioPool['TIRE_DRIFT'];
-      if (driftSoundInstance) {
-        if (isDrifting && bikeSpeed > 15) {
-          await driftSoundInstance.setVolumeAsync(0.8);
-        } else {
-          await driftSoundInstance.setVolumeAsync(0.0);
-        }
+      // Adjust engine pitch based on speed
+      const speedRatio = playerVehicle.speed / playerVehicle.maxSpeed;
+      const pitch = 0.8 + (speedRatio * 1.2);
+      this.updateSoundPitch('engine', pitch);
+
+      // Play brake screech
+      if (gameState.drivingControls.brake && playerVehicle.speed > 10) {
+        this.playSound('brake', this.soundLibrary.brake_screech);
       }
-    } catch (e) {
-      // Frame skip bypass
-    }
-  }
 
-  /**
-   * 4. LIVE WORLD TRANSIT AUDIO SYNC
-   * Couples environmental engine ticks with independent multi-threaded sound updates.
-   */
-  async synchronizeEnvironmentalAudio(playerX, playerY, liveTransitData, activeFleetRegistry) {
-    try {
-      const steamVol = this.calculateSpatialVolume(playerX, playerY, liveTransitData.steamTrain.x, liveTransitData.steamTrain.y, 400);
-      if (this.activeAudioPool['STEAM_TRAIN']) await this.activeAudioPool['STEAM_TRAIN'].setVolumeAsync(steamVol);
-
-      const metroVol = this.calculateSpatialVolume(playerX, playerY, liveTransitData.metroTrain.x, liveTransitData.metroTrain.y, 200);
-      if (this.activeAudioPool['METRO_TRAIN']) await this.activeAudioPool['METRO_TRAIN'].setVolumeAsync(metroVol);
-
-      activeFleetRegistry.forEach(async (asset) => {
-        if (asset.type === 'ROOFTOP_HELICOPTER') {
-          const chopperVol = this.calculateSpatialVolume(playerX, playerY, asset.x, asset.y, 300);
-          const audioKey = `CHOPPER_${asset.id}`;
-          if (this.activeAudioPool[audioKey]) await this.activeAudioPool[audioKey].setVolumeAsync(chopperVol);
-        }
-      });
-    } catch (err) {
-      // Standard execution guard
-    }
-  }
-
-  /**
-   * 5. CHARACTER FOOTSTEPS INTERFACE
-   * Toggles low-amplitude impact pulses during terrestrial motion tracking loops.
-   */
-  async triggerPlayerFootstep(isMovingOnGround) {
-    const footstep = this.activeAudioPool['FOOTSTEPS'];
-    if (!footstep) return;
-
-    if (isMovingOnGround) {
-      await footstep.setVolumeAsync(0.5);
     } else {
-      await footstep.setVolumeAsync(0.0);
+      // Player is not in a vehicle, stop engine sound
+      if (this.activeSounds.has('engine')) {
+        this.stopSound('engine');
+      }
+    }
+  }
+
+  updateActionAudio(gameState) {
+      // Rudimentary check for combat sounds
+      gameState.guards.forEach(guard => {
+          // A simple way to detect a recent hit is to check the attack timer
+          if(guard.behaviorState === 'ATTACKING' && guard.attackTimer === guard.attackCooldown - 1) {
+              this.playSound('combat_hit', this.soundLibrary.punch_hit, 0.8);
+          }
+      });
+  }
+
+  // --- Audio Playback Primitives (Placeholders) ---
+
+  playSound(soundId, soundAsset, volume = 1.0) {
+    // In a real engine, you'd play the sound buffer here
+    // A check to prevent rapid re-triggering could be added.
+    console.log(`[SoundEngine] PLAY: ${soundId} at volume ${volume}`);
+  }
+
+  loopSound(soundId, soundAsset, volume = 1.0) {
+    if (this.activeSounds.has(soundId)) return;
+    // In a real engine, you'd create a looping audio source
+    const soundNode = { asset: soundAsset, volume: volume, pitch: 1.0 };
+    this.activeSounds.set(soundId, soundNode);
+    console.log(`[SoundEngine] LOOP START: ${soundId}`);
+  }
+
+  stopSound(soundId) {
+    if (!this.activeSounds.has(soundId)) return;
+    // In a real engine, you'd stop the audio source
+    this.activeSounds.delete(soundId);
+    console.log(`[SoundEngine] LOOP STOP: ${soundId}`);
+  }
+
+  updateSoundPitch(soundId, pitch) {
+    const activeSound = this.activeSounds.get(soundId);
+    if (activeSound && activeSound.pitch !== pitch) {
+      activeSound.pitch = pitch;
+      // In a real engine, you'd update the playbackRate of the audio source
+      console.log(`[SoundEngine] PITCH UPDATE: ${soundId} to ${pitch.toFixed(2)}`);
     }
   }
 }
 
-const soundFXEngineInstance = new SoundFXDynamicEngine();
-export default soundFXEngineInstance;
+const soundEngineInstance = new SoundFXDynamicEngine();
+export default soundEngineInstance;

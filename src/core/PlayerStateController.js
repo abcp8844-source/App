@@ -1,82 +1,66 @@
-import fleetRegistryInstance from './VehicleFleetRegistry';
+import vehiclePhysicsInstance from './VehiclePhysicsController';
 
 class PlayerStateController {
   constructor() {
-    this.WALK_SPEED = 4;
-    this.RUN_SPEED = 7;
-    this.interactionRadius = 50; // Distance required to enter a vehicle
+    this.walkSpeed = 3.5; // Player's on-foot speed
+    this.runSpeed = 7.0;  // Player's sprinting speed
   }
 
-  // 1. Process standard player physics frames (Walking, Running, Survival Vitals)
-  updatePlayerFrame(player, joystickX, joystickY, isRunning, currentSurface) {
-    // Prevent standard walking updates if the player is currently driving a vehicle
-    if (player.isDriving && player.currentVehicleId) return player;
+  // Frame update for the player, now handling both on-foot and in-vehicle states
+  updatePlayerFrame(player, joyX, joyY, run, vehicle, drivingInputs) {
+    if (!player) return;
 
-    const baseSpeed = isRunning ? this.RUN_SPEED : this.WALK_SPEED;
-    
-    // Mud or off-road grass slows down the player's running speed naturally
-    const surfaceModifier = currentSurface === 'OFF_ROAD' ? 0.7 : 1.0;
-    const finalSpeed = baseSpeed * surfaceModifier;
-
-    // Translate joystick vectors directly to modern world coordinates
-    player.x += joystickX * finalSpeed;
-    player.y += joystickY * finalSpeed;
-
-    if (joystickX !== 0 || joystickY !== 0) {
-      player.rotation = Math.atan2(joystickY, joystickX); // Face movement direction smoothly
+    if (player.currentVehicleId && vehicle) {
+      // Player is in a vehicle, so delegate control to the vehicle physics engine
+      this.updateVehicleState(player, vehicle, drivingInputs);
+    } else {
+      // Player is on foot, use standard movement logic
+      this.updateOnFootState(player, joyX, joyY, run);
     }
-
-    // Core survival drains over time to keep player engaged in the loop
-    player.vitals.hunger -= 0.002;
-    player.vitals.thirst -= 0.003;
-
-    if (player.vitals.hunger <= 0 || player.vitals.thirst <= 0) {
-      player.health -= 0.1; // Health deprecation due to starvation
-    }
-
-    return player;
   }
 
-  // 2. High-end transaction handling mounting and dismounting the multi-car network fleet
-  handleVehicleInteraction(player, globalVehicles) {
-    if (player.isDriving && player.currentVehicleId) {
-      // EXIT ACTION: Dismount vehicle safely onto the street
-      const currentVehicle = globalVehicles[player.currentVehicleId];
-      if (currentVehicle) {
-        currentVehicle.isJacked = player.isDriving = false;
-        currentVehicle.speed = 0;
-        
-        // Position player safely slightly to the left of the exited vehicle door
-        player.x = currentVehicle.x - 45;
-        player.y = currentVehicle.y;
-        player.currentVehicleId = null;
-      }
-      return { action: 'EXIT_SUCCESS' };
+  // Existing logic for when the player is on foot
+  updateOnFootState(player, joyX, joyY, run) {
+    const speed = run ? this.runSpeed : this.walkSpeed;
+    const magnitude = Math.sqrt(joyX * joyX + joyY * joyY);
+
+    if (magnitude > 0.1) {
+      player.x += (joyX / magnitude) * speed;
+      player.y -= (joyY / magnitude) * speed; // Y is inverted in screen coordinates
+    }
+  }
+
+  // New logic for when the player is controlling a vehicle
+  updateVehicleState(player, vehicle, drivingInputs) {
+    if (!vehicle || !drivingInputs) return;
+
+    const { throttle, brake, steer } = drivingInputs;
+
+    // 1. Apply steering input
+    if (Math.abs(steer) > 0.1) {
+      const turnDirection = Math.sign(steer);
+      // Adjust the vehicle's heading based on steer input and current speed
+      // This is a simplified model. A real one would use angular velocity.
+      vehicle.heading += turnDirection * 0.03 * (vehicle.speed / vehicle.maxSpeed);
     }
 
-    // ENTER/HIJACK ACTION: Scan for closest available vehicle configuration within range
-    for (let id in globalVehicles) {
-      const vehicle = globalVehicles[id];
-      const distance = Math.hypot(vehicle.x - player.x, vehicle.y - player.y);
-
-      if (distance <= this.interactionRadius) {
-        const vehicleSpecs = fleetRegistryInstance.getVehicleSpecs(vehicle.modelId);
-        
-        vehicle.isJacked = true;
-        vehicle.driverId = null; // Eject AI traffic driver out if present
-        
-        player.isDriving = true;
-        player.currentVehicleId = vehicle.id;
-
-        return {
-          action: 'ENTER_SUCCESS',
-          vehicleId: vehicle.id,
-          specs: vehicleSpecs
-        };
-      }
+    // 2. Apply throttle and brake input
+    if (throttle) {
+      vehicle.speed = Math.min(vehicle.maxSpeed, vehicle.speed + 0.5);
+    } else if (brake) {
+      vehicle.speed = Math.max(0, vehicle.speed - 0.8);
+    } else {
+      // Natural deceleration (friction, air resistance)
+      vehicle.speed = Math.max(0, vehicle.speed - 0.2);
     }
 
-    return { action: 'NO_VEHICLE_IN_RANGE' };
+    // 3. Update vehicle position based on new speed and heading
+    // This delegates the actual movement calculation to the VehiclePhysicsController
+    vehiclePhysicsInstance.applyPlayerDrive(vehicle);
+
+    // 4. Sync player position with the vehicle
+    player.x = vehicle.x;
+    player.y = vehicle.y;
   }
 }
 
